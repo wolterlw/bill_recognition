@@ -36,6 +36,7 @@ def fig2data (fig):
  
     w,h = fig.canvas.get_width_height()
     buf = np.frombuffer( fig.canvas.tostring_rgb(), dtype=np.uint8 )
+    # fig.close()
     buf = buf.reshape((h,w,3))
     #crop the whitespace
     bnd1 = np.argwhere( buf[:,:,2].min(axis=0)!=255 ).ravel()
@@ -49,16 +50,19 @@ def get_res_image(img,lines):
 	plot = f.add_subplot(111)
 	plot.axis('off')
 
-	plot.set_xlim(0,300)
+	width = img.shape[1]
+	plot.set_xlim(0,width)
 	plot.imshow(img,
 	           cmap='Greys_r')
 	plot.hlines(lines,
-	           0, 300,
+	           0, width,
 	           colors='r',
 	           linestyles='--',
 	           linewidth=1)
 
-	return fig2data(f)
+	res_img = fig2data(f)
+	plt.clf()
+	return res_img
 
 def prepare_image(image):
 	# if the image mode is not RGB, convert it
@@ -71,6 +75,9 @@ def prepare_image(image):
 
 	# return the processed image
 	return image
+
+def store_results(image,lines):
+	pass
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -89,7 +96,7 @@ def predict():
 			image = prepare_image(image)
 
 			
-			img_proc, mask = segmenter.process_image(image, return_mask=True)
+			img_proc, mask = segmenter.process_image(image)
 			bin_ = binarize(img_proc.astype('uint8'),
                 plot=False,
                 mask=cv2.erode(mask,
@@ -100,6 +107,7 @@ def predict():
 			bin_ = (bin_>30).astype('uint8')*bin_
 			lines = get_lines(bin_, return_coord=True)
 		
+			store_results(bin_, lines)
 
 			res_img = get_res_image(img_proc, lines)
 			pil_img = Image.fromarray(res_img)
@@ -119,4 +127,5 @@ if __name__ == "__main__":
 	print(("* Loading Keras model and Flask starting server..."
 		"please wait until server has fully started"))
 	load_model()
+
 app.run()

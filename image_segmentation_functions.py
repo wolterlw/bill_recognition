@@ -17,7 +17,7 @@ class Segmenter(object):
             vec = - vec
         return vec if vec[0] > 0 else -vec
 
-    def _crop_to_mask(self, x, y):
+    def _crop_to_mask(self, x, y, cropped_width=300):
         img = (y>0.9).astype('uint8')*255
 
         img, contours, _ = cv2.findContours(img, 1, 2)
@@ -45,7 +45,6 @@ class Segmenter(object):
 
         x_img = x_img[:,:,0]*mask
 
-
         x_min = min(np.argwhere(x_img.sum(axis=0)>0))[0]
         x_max = max(np.argwhere(x_img.sum(axis=0)>0))[0]
         y_min = min(np.argwhere(x_img.sum(axis=1)>0))[0]
@@ -55,8 +54,16 @@ class Segmenter(object):
         mask_crop = mask[y_min:y_max,x_min:x_max]
         x_crop[x_crop < 5] = 0
         
-        dsize = (int(x_crop.shape[0] * 300 / x_crop.shape[1]), 300)
-        return cv2.resize(x_crop, dsize[::-1]), cv2.resize(mask_crop, dsize[::-1])
+        dsize = (int(x_crop.shape[0] * cropped_width / x_crop.shape[1]), cropped_width)
+        return {
+            'rotated': x_img,
+            'cropped': cv2.resize(x_crop, dsize[::-1]), 
+            'mask': cv2.resize(mask_crop, dsize[::-1]),
+            'center': center_big,
+            'angle': angle,
+            'heigth': y_max - y_min,
+            'width': x_max - x_min
+            }
 
     def _get_mask(self, img):
         x_inp = cv2.resize(img,(240,320)).astype('float32') / 255
@@ -65,19 +72,19 @@ class Segmenter(object):
             verbose = False)[0,:,:,0]
         return mask
 
-    def process_image(self, img, return_mask = False):
+    def process_image(self, img, return_coord = False):
 
         inp_img = cv2.resize(
             img, (960,1280)
         )
 
         mask = self._get_mask(inp_img)
-        img_proc, mask_proc = self._crop_to_mask(inp_img, mask)
+        cropped_dict = self._crop_to_mask(inp_img, mask, cropped_width=400)
 
-        if return_mask:
-            return (img_proc, mask_proc)
+        if return_coord:
+            return cropped_dict
         else:
-            return img_proc
+            return (cropped_dict['cropped'], cropped_dict['mask'])
 
 
 

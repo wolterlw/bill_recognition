@@ -1,12 +1,10 @@
 import telegram
-from telegram.ext import Updater
-from telegram.ext import CommandHandler
+from telegram.ext import Updater, CommandHandler
 from telegram.ext import MessageHandler, Filters
 
-from PIL import Image
-import requests as r
-
+from requests import post as r_post
 import io
+
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -41,7 +39,7 @@ def get_photo(bot, update):
 
 	payload = {"image": image}
 
-	resp = r.post('http://127.0.0.1:5000/predict', files=payload)
+	resp = r_post('http://127.0.0.1:5000/predict', files=payload)
 
 	bot.send_photo(chat_id=update.message.chat_id, photo=io.BytesIO(resp.content))
 
